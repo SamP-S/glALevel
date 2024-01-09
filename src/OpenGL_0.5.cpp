@@ -18,7 +18,6 @@
 /* Must Define GLEW > GLFW */
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <stb_image.h>
 
 /* Shaders */
 // Vertex Shader
@@ -379,11 +378,11 @@ int main(void)
 
 		/* Changes Colour depending on time */
 
-		//glDrawArrays(GL_TRIANGLES, 0, 3); // Triangles
+		// glDrawArrays(GL_TRIANGLES, 0, 3); // Triangles
 		//glDrawArrays(GL_POLYGON, 0, 3);	// Polygons
 
 		/* "MODE", "NUM_vertices", "Type", "Indicies" */
-		glDrawElements(GL_POLYGON, 6, GL_UNSIGNED_INT, 0); // Draw Polygons using Elements
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0); // Draw Polygons using Elements
 
 		//std::cout << "EVENT: Rendering" << std::endl;
 

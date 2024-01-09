@@ -18,10 +18,11 @@
 /* Must Define GLEW > GLFW */
 #include <GLEW/include/GL/glew.h>
 #include <GLFW/include/GLFW/glfw3.h>
-#include <SOIL/SOIL.h>
 #include <GLM/glm.hpp>
 #include <GLM/gtc/matrix_transform.hpp>
 #include <GLM/gtc/type_ptr.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 /* Shaders */
 // Vertex Shader
@@ -190,10 +191,10 @@ int main(void)
 	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
 
-	int width, height;
-	unsigned char* image = SOIL_load_image("img/Space3.jpeg", &width, &height, 0, SOIL_LOAD_RGB);
+	int width, height, channels;
+	unsigned char* image = stbi_load("img/Space3.jpeg", &width, &height, &channels, STBI_rgb);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-	SOIL_free_image_data(image);
+	stbi_free_image_data(image);
 
 	float color[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, color);
