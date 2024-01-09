@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 
-project(glALevel VERSION 1.0.0 LANGUAGES C CXX)
+project(glALevel VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD          17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,22 +28,5 @@ include_directories(include)
 add_subdirectory("external/GLM")
 
 
-add_executable (gl_v0.1 src/OpenGL_0.1.cpp)
-target_link_libraries(gl_v0.1 PUBLIC glfw)
-
-add_executable (gl_v0.2 src/OpenGL_0.2.cpp)
-target_link_libraries(gl_v0.2 PUBLIC OpenGL::GL GLEW::GLEW glfw)
-
-add_executable (gl_v0.3 src/OpenGL_0.3.cpp)
-target_link_libraries(gl_v0.3 PUBLIC OpenGL::GL GLEW::GLEW glfw)
-
-add_executable (gl_v0.4 src/OpenGL_0.4.cpp)
-target_link_libraries(gl_v0.4 PUBLIC OpenGL::GL GLEW::GLEW glfw)
-
-add_executable (gl_v0.5 src/OpenGL_0.5.cpp)
-target_link_libraries(gl_v0.5 PUBLIC OpenGL::GL GLEW::GLEW glfw)
-
-add_executable (gl_v0.6 src/OpenGL_0.5.cpp)
-target_link_libraries(gl_v0.6 PUBLIC OpenGL::GL GLEW::GLEW glfw glm::glm)
-
-
+add_executable (app src/Application2.cpp)
+target_link_libraries(app PUBLIC OpenGL::GL GLEW::GLEW glfw)
