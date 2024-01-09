@@ -135,27 +135,19 @@ int main()
 
 	/* Obj File Loader */
 	Object EmptyObj;
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		ObjectArr.push_back(EmptyObj);
 	}
 
-	ObjectArr[0].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/cube.obj", "");
+	ObjectArr[0].load("meshes/cube.obj", "meshes/dog/Dog_diffuse.jpg");
 	ObjectArr[0].position(80, -50, 100);
 	ObjectArr[0].scale(1);
 	
-	ObjectArr[1].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/dog.obj" , "");
+	ObjectArr[1].load("meshes/dog.dog.obj" , "");
 	ObjectArr[1].scale(10);
 	ObjectArr[1].position(500, 0, 500);
 	ObjectArr[1].rotation(0, 90, 90);
-
-	ObjectArr[2].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/yoda.obj", "");
-	ObjectArr[2].scale(10);
-	ObjectArr[2].position(100, -80, 20);
-
-	ObjectArr[3].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/leia.obj", "");
-	ObjectArr[3].scale(2);
-	ObjectArr[3].position(0, -50, -200);
 
 	for (int i = 0; i < ObjectArr.size(); i++)
 	{
