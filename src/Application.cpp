@@ -1,6 +1,6 @@
 /* Definitions */
-#define WINDOW_WIDTH 1280									// xxxx
-#define WINDOW_HEIGHT 720									// yyyy
+#define WINDOW_WIDTH 1600									// xxxx
+#define WINDOW_HEIGHT 900									// yyyy
 #define WINDOW_FULLSCREEN NULL								// NULL || glfwGetPrimaryMonitor()
 #define WINDOW_POSX 50
 #define WINDOW_POSY 50	
@@ -10,115 +10,35 @@
 #define GL_LITE_IMPLEMENTATION
 #include "OpenGL_Loader.h"
 #include "glfw3.h"
+#include "Error.h"
 #include "Camera.h"
 #include "3D_Math.h"
 #include "Shader.h"
-#include "Timer.h"
 #include "Texture_2D.h"
+#include "Timer.h"
 #include "VertexData.h"
 #include "obj_Reader.h"
 #include "Coloursf.h"
-#include "FrameRate.h"
+#include "Sources.h"
+#include "Objects.h"
+#include "BMP.h"
 #include <iostream>
 #include <chrono>
 
+// Intialising Class Objects
 Camera CameraClass;
-Shader ShaderClass;
-Timer TimerClass;
-Texture TextureClass;
-Obj ObjClass;
-FrameRate FrameRateClass;
+std::vector<Object> ObjectArr;
+Texture_2D tex;
 
+Shader ShaderWireframe;
+Shader ShaderFull;
 
-
-// Vertex Source
-const GLchar* vertexSource = R"glsl(
-    #version 150 core
-	
-    in vec3 position;
-    in vec3 color;
-	in vec2 texcoord;
-
-    out vec3 Color;
-	out vec2 Texcoord;
-
-	uniform mat4 matrix;
-	uniform mat4 persp;
-	uniform mat4 view;
-
-    void main()
-    {
-        Color = color;
-        gl_Position = matrix * persp * view * vec4(position, 1.0);
-		Texcoord = texcoord;
-    }
-)glsl";
-
-// Fragment Source
-const GLchar* fragmentSource = R"glsl(
-    #version 150 core
-	
-    in vec3 Color;
-	in vec2 Texcoord;
-	
-    out vec4 outColor;
-
-	uniform sampler2D tex;
-
-    void main()
-    {
-        outColor = texture(tex, Texcoord) * vec4(Color, 1.0);
-    }
-)glsl";
+Timer timer;
 
 double previous_x = 0.0f;
 double previous_y = 0.0f;
 
-void ErrorCheck()
-{
-	GLenum error;
-
-	error = glGetError();
-
-	if (error != GL_NO_ERROR)
-	{
-		std::cout << "Not Working" << std::endl;
-	}
-
-	if (error == GL_INVALID_OPERATION)
-	{
-		std::cout << "INVALID OPERATION" << std::endl;
-	}
-	if (error == GL_NO_ERROR)
-	{
-		std::cout << "No Error! -> CODE CHECKING <-" << std::endl;
-	}
-
-	if (error == GL_INVALID_VALUE)
-	{
-		std::cout << "NO VALUE" << std::endl;
-	}
-
-	if (error == GL_OUT_OF_MEMORY)
-	{
-		std::cout << "NO MEMORY" << std::endl;
-	}
-
-	if (error == GL_STACK_OVERFLOW)
-	{
-		std::cout << "NO OVERFLOW" << std::endl;
-	}
-
-	if (error == GL_INVALID_FRAMEBUFFER_OPERATION)
-	{
-		std::cout << "Invalid Framebuffer <-" << std::endl;
-	}
-
-	if (error == GL_OUT_OF_MEMORY)
-	{
-		std::cout << "Out of Memory" << std::endl;
-	}
-}
+bool cursor = false;
 
 static void mouseButtonCallBack(GLFWwindow* window, int button, int action, int mods)
 {
@@ -153,7 +73,11 @@ static void cursorPositionCallBack(GLFWwindow* window, double x, double y)
 
 	std::cout << "X: " << dx << "	Y: " << dy << std::endl;
 
-	CameraClass.moveCameraOrientation(dx, dy);
+	if (!cursor)
+	{
+		CameraClass.moveCameraOrientation(dx, dy);
+	}
+	
 
 	previous_x = x;
 	previous_y = y;
@@ -161,12 +85,7 @@ static void cursorPositionCallBack(GLFWwindow* window, double x, double y)
 }
 
 int main()
-{
-	ShaderClass.VertexSource = vertexSource;
-	ShaderClass.FragmentSource = fragmentSource;
-
-	TimerClass.StartTimer();
-
+{	
 	GLFWwindow* window;
 
 	/* Initialize GLFW */
@@ -185,7 +104,7 @@ int main()
 
 	/* Set Window Position */
 	glfwSetWindowPos(window, WINDOW_POSX, WINDOW_POSY);
-
+	 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
 
@@ -194,200 +113,296 @@ int main()
 
 	/* OpenGL Function Loader */
 	gl_lite_init();
+	std::cout << "Open GL Loader: ";
+	ErrorCheck(); // Test
 
-	/* Obj File Loader */
-	ObjClass.ReadOBJ("C:/suzanne_merge.obj");
-
-	// Create Vertex Array Object
-	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-
-	// Create a Vertex Buffer Object and copy the vertex data to it
-	GLuint vbo;
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(VERT_ARRAY), VERT_ARRAY, GL_STATIC_DRAW);
-
-	/* Shader Prorgam */
-	ShaderClass.SetupShader();
-	GLuint shaderProgram = ShaderClass.ShaderProgramUint;
-
-	/* Attributes */
-	// Specify the layout of the vertex data
-	GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
-	glEnableVertexAttribArray(posAttrib);
-	glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), 0);
-
-	GLint colAttrib = glGetAttribLocation(shaderProgram, "color");
-	glEnableVertexAttribArray(colAttrib);
-	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-
-	GLint texAttrib = glGetAttribLocation(shaderProgram, "texcoord");
-	glEnableVertexAttribArray(texAttrib);
-	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
-	glActiveTexture(GL_TEXTURE0);
+	/* Timer */
+	timer.StartTimer();
 
 	/* Camera Setup */
 	CameraClass.setProjectionMatrix(WINDOW_WIDTH, WINDOW_HEIGHT, 0.1f, 10000.0f);
 	CameraClass.updateCamera();
 	CameraClass.print();
 
+	/* Shader Programs */
+	GLuint shaderProgram_wireframe = ShaderWireframe.SetupShader(vs_wireframe, fs_wireframe);
+	std::cout << "Wireframe Shader Program: ";
+	ErrorCheck(); // Test
 
-	/* Uniforms */
-	GLint uniMatrix = glGetUniformLocation(shaderProgram, "matrix");
-	glUniformMatrix4fv(uniMatrix, 1, GL_FALSE, &CameraClass.modelTransformationMatrix.m[0][0]);
-	//m4_print(CameraClass.matrix);
-	std::cout << "&Matrix[0][0]: " << &CameraClass.modelTransformationMatrix.m[0][0] << std::endl;
-	ErrorCheck();
+	GLuint shaderProgram_full = ShaderFull.SetupShader(vs_full, fs_full);
+	std::cout << "Full Shader Program: ";
+	ErrorCheck(); // Test
 
-	GLint uniPersp = glGetUniformLocation(shaderProgram, "persp");
-	glUniformMatrix4fv(uniPersp, 1, GL_FALSE, &CameraClass.perspectiveProjectionMatrix.m[0][0]);
-	//m4_print(CameraClass.matrix);
-	std::cout << "&Matrix[0][0]: " << &CameraClass.perspectiveProjectionMatrix.m[0][0] << std::endl;
-	ErrorCheck();
+	/* Obj File Loader */
+	Object EmptyObj;
+	for (int i = 0; i < 4; i++)
+	{
+		ObjectArr.push_back(EmptyObj);
+	}
 
-	GLint uniView = glGetUniformLocation(shaderProgram, "view");
-	glUniformMatrix4fv(uniView, 1, GL_FALSE, &CameraClass.cameraViewMatrix.m[0][0]);
-	//m4_print(CameraClass.matrix);
-	std::cout << "&Matrix[0][0]: " << &CameraClass.cameraViewMatrix.m[0][0] << std::endl;
-	ErrorCheck();
+	ObjectArr[0].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/cube.obj", "");
+	ObjectArr[0].position(80, -50, 100);
+	ObjectArr[0].scale(1);
+	
+	ObjectArr[1].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/dog.obj" , "");
+	ObjectArr[1].scale(10);
+	ObjectArr[1].position(500, 0, 500);
+	ObjectArr[1].rotation(0, 90, 90);
 
-	/* Texture */
-	TextureClass.GenerateEmptyTexture();
-	TextureClass.SetTexture(TextureClass.whiteTexture);
-	TextureClass.SetFiltering(GL_NEAREST);
-	TextureClass.SetTextureWrapping(GL_REPEAT);
+	ObjectArr[2].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/yoda.obj", "");
+	ObjectArr[2].scale(10);
+	ObjectArr[2].position(100, -80, 20);
 
-	ErrorCheck();
+	ObjectArr[3].load("C:/Users/Sam/source/repos/OpenGL_C++/OpenGL_0.6/OpenGL_0.6/meshes/leia.obj", "");
+	ObjectArr[3].scale(2);
+	ObjectArr[3].position(0, -50, -200);
+
+	for (int i = 0; i < ObjectArr.size(); i++)
+	{
+		ObjectArr[i].bind_shader_program(shaderProgram_full, shaderProgram_wireframe);
+		std::cout << "Object " << i << ": Shader Programs Assigned\n";
+	}
+
+	for (int i = 0; i < ObjectArr.size(); i++)
+	{
+		ObjectArr[i].setup();
+		ObjectArr[i].setupWireframe();
+	}
 
 	/* OpenGL Rendering Properties */
-	glEnable(GL_CULL_FACE);		// Enables culling to allows triangles to be removed at either back or front to not be rendered
-	glCullFace(GL_BACK);		// Sets culling mode to remove all back triangles
-	glFrontFace(GL_CCW);		// Front Triangles have their points ordered counter clock-wise
+	glEnable(GL_DEPTH_TEST);		// Enables Depth Testing
+	glDepthFunc(GL_LESS);			// Discards fragment that are further away than currently rendered fragments (render back-to-front)
+	glEnable(GL_CULL_FACE);			// Enables culling to allows triangles to be removed at either back or front to not be rendered
+	glCullFace(GL_BACK);			// Sets culling mode to remove all back triangles
+	glFrontFace(GL_CCW);			// Front Triangles have their points ordered counter clock-wise
 
 	/* Set Mouse Input */
 	glfwSetCursorPos(window, 0, 0);
 	glfwSetMouseButtonCallback(window, mouseButtonCallBack);
 	glfwSetCursorPosCallback(window, cursorPositionCallBack);
 
-	/* Frame Rate Counter */
-	FrameRateClass.start();
-
+	bool tab_state = false;
 	bool close = false;
+	bool jump = false;
+
+	double cursorX;
+	double cursorY;
+
+	bool mouse_l_state = false;
+	bool mouse_r_state = false;
+
 	while (!glfwWindowShouldClose(window) && !close)
 	{
-		/* Render here */
-		// Clear the screen to black
-		glClearColor(RGBA_BLACK);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		// Draw (type, first pos, no verticies)
-		glDrawArrays(DRAW_MODE, 0, VERT_POINTS);
-
-		/* Swap front and back buffers */
-		glfwSwapBuffers(window);
-
-		/* Poll ofr and process events */
-		glfwPollEvents();
-
-		/* Input Management */
-		int state;
-
-		// W
-		state = glfwGetKey(window, GLFW_KEY_W);
-		if (state == GLFW_PRESS)
+		/* INPUT */
 		{
-			std::cout << "W";
-			CameraClass.moveCameraPosition(1, 0, 0);
-		}
+			/* Poll of inputs and process events */
+			glfwPollEvents();
 
-		// S
-		state = glfwGetKey(window, GLFW_KEY_S);
-		if (state == GLFW_PRESS)
-		{
-			std::cout << "S";
-			CameraClass.moveCameraPosition(-1, 0, 0);
-		}
-
-		// A
-		state = glfwGetKey(window, GLFW_KEY_A);
-		if (state == GLFW_PRESS)
-		{
-			std::cout << "A";
-			CameraClass.moveCameraPosition(0, -1, 0);
-		}
-
-		// D
-		state = glfwGetKey(window, GLFW_KEY_D);
-		if (state == GLFW_PRESS)
-		{
-			std::cout << "D";
-			CameraClass.moveCameraPosition(0, 1, 0);
-		}
-
-		// SPACE
-		state = glfwGetKey(window, GLFW_KEY_SPACE);
-		if (state == GLFW_PRESS)
-		{
-			std::cout << "_";
-			CameraClass.moveCameraPosition(0, 0, 1);
-		}
-
-		// CTRL
-		state = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL);
-		if (state == GLFW_PRESS)
-		{
-			std::cout << "^";
-			CameraClass.moveCameraPosition(0, 0, -1);
-		}
-
-		// TAB
-		state = glfwGetKey(window, GLFW_KEY_TAB);
-		if (state == GLFW_PRESS)
-		{
-			std::cout << "TAB";
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		}
-		else
-		{
-			if (state == GLFW_RELEASE)
+			/* Input Management */
 			{
-				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+				int state;
+
+				glfwGetCursorPos(window, &cursorX, &cursorY);
+
+				// Mouse 1
+				state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1);
+				if (state == GLFW_PRESS)
+				{
+					mouse_l_state = true;
+				}
+				else
+				{
+					mouse_l_state = false;
+				}
+
+				// Mouse 2
+				state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2);
+				if (state == GLFW_PRESS)
+				{
+					mouse_r_state = true;
+				}
+				else
+				{
+					mouse_r_state = false;
+				}
+
+				// W
+				state = glfwGetKey(window, GLFW_KEY_W);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "W";
+					CameraClass.moveCameraPosition(1, 0, 0);
+				}
+
+				// S
+				state = glfwGetKey(window, GLFW_KEY_S);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "S";
+					CameraClass.moveCameraPosition(-1, 0, 0);
+				}
+
+				// A
+				state = glfwGetKey(window, GLFW_KEY_A);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "A";
+					CameraClass.moveCameraPosition(0, -1, 0);
+				}
+
+				// D
+				state = glfwGetKey(window, GLFW_KEY_D);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "D";
+					CameraClass.moveCameraPosition(0, 1, 0);
+				}
+
+				float yoda_speed = 0.1;
+				// 8
+				state = glfwGetKey(window, GLFW_KEY_KP_8);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "8";
+					ObjectArr[2].x_pos += yoda_speed;
+				}
+
+				// 5
+				state = glfwGetKey(window, GLFW_KEY_KP_5);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "5";
+					ObjectArr[2].x_pos -= yoda_speed;
+				}
+
+				// 4
+				state = glfwGetKey(window, GLFW_KEY_KP_4);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "4";
+					ObjectArr[2].z_pos -= yoda_speed;
+				}
+
+				// 6
+				state = glfwGetKey(window, GLFW_KEY_KP_6);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "6";
+					ObjectArr[2].z_pos += yoda_speed;
+				}
+
+				// ENTER
+				state = glfwGetKey(window, GLFW_KEY_ENTER);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "ENTER";
+					//CameraClass.moveCameraPosition(0, 0, 1);
+
+					if (!jump)
+					{
+						jump = true;
+					}
+
+				}
+
+				if (jump)
+				{
+					if (ObjectArr[2].z_rot >= Pi * 2 - Pi / 9)
+					{
+						jump = false;
+						ObjectArr[2].z_rot = 0;
+					}
+					else
+					{
+						ObjectArr[2].z_rot += Pi / 9;
+					}
+
+				}
+
+				// SPACE
+				state = glfwGetKey(window, GLFW_KEY_SPACE);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "_";
+					CameraClass.moveCameraPosition(0, 0, 1);
+				}
+
+				// CTRL
+				state = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "^";
+					CameraClass.moveCameraPosition(0, 0, -1);
+				}
+
+				// TAB
+				state = glfwGetKey(window, GLFW_KEY_TAB);
+				if (state == GLFW_PRESS)
+				{
+					if (!tab_state)
+					{
+						tab_state = true;
+						if (cursor)
+						{
+							glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+							cursor = false;
+						}
+						else
+						{
+							glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+							cursor = true;
+						}
+
+					}
+					std::cout << "TAB";
+				}
+				else
+				{
+					if (state == GLFW_RELEASE)
+					{
+						//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+						tab_state = false;
+					}
+				}
+
+				// ESC
+				state = glfwGetKey(window, GLFW_KEY_ESCAPE);
+				if (state == GLFW_PRESS)
+				{
+					std::cout << "ESC";
+					close = true;
+				}
 			}
+
+			/* Move Camera */
+			CameraClass.updateCamera();
 		}
 
-		// ESC
-		state = glfwGetKey(window, GLFW_KEY_ESCAPE);
-		if (state == GLFW_PRESS)
+		/* RENDER */
 		{
-			std::cout << "ESC";
-			close = true;
+			// Clear the screen to black & clear depth buffer
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			for (int i = 0; i < ObjectArr.size(); i++)
+				ObjectArr[i].render(CameraClass);
+
+			/* Swap front and back buffers */
+			glfwSwapBuffers(window);
 		}
-
-		/* Move Camera */
-		CameraClass.updateCamera();
-		glUniformMatrix4fv(uniMatrix, 1, GL_FALSE, &CameraClass.modelTransformationMatrix.m[0][0]);
-		glUniformMatrix4fv(uniPersp, 1, GL_FALSE, &CameraClass.perspectiveProjectionMatrix.m[0][0]);
-		glUniformMatrix4fv(uniView, 1, GL_FALSE, &CameraClass.cameraViewMatrix.m[0][0]);
-
-		/* Frame Rate */
-		/*FrameRateClass.frame();
-		if (FrameRateClass.frame_num % 60 == 0)
-		{
-			std::cout << FrameRateClass.avg_rate << std::endl;
-		}*/
 	}
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
-	TextureClass.DeleteTexure();
-	ShaderClass.DeleteShaderResources();
+	ShaderWireframe.DeleteShaderResources();
+	ShaderFull.DeleteShaderResources();
 
-	glDeleteBuffers(1, &vbo);
-	glDeleteVertexArrays(1, &vao);
-
+	for (int i = 0; i < ObjectArr.size(); i++)
+	{
+		ObjectArr[i].delete_buffer_resources();
+	}
+	
 	glfwTerminate();
 
 	return 0;
 }
+
+// DrawArrays(render type/mode, first position, number of verticies)

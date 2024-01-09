@@ -28,5 +28,5 @@ include_directories(include)
 add_subdirectory("external/GLM")
 
 
-add_executable (app src/Application2.cpp)
+add_executable (app src/Application.cpp)
 target_link_libraries(app PUBLIC OpenGL::GL GLEW::GLEW glfw)
